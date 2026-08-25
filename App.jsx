@@ -189,7 +189,6 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
   const woodworkPrice = num(quote.total) - marbleTotal;
 
   // مجموع الأمتار الكلي
-  const totalMeters = woodworkMeters + marbleMeters;
 
   const hasMarble = !!quote.marbleType && marbleMeters > 0;
 
@@ -374,7 +373,6 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
           >
             المجموع الكلي
           </span>
-
           <span
             style={{
               textAlign: 'center',
