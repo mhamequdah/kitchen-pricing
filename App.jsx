@@ -353,21 +353,16 @@ export default function KitchenPricingSystem() {
                 </p>
 
                 <div className="divide-y divide-[#F0E6D8]">
-                  <SummaryLine label="أمتار الخزائن السفلية" value={calc.lowerCost} />
-                  <SummaryLine label="أمتار الخزائن العلوية" value={calc.upperCost} />
-                  <SummaryLine label="أمتار الوحدات الطولية" value={calc.tallCost} />
+                  <SummaryLine label="سعر أمتار الخزائن السفلية" value={calc.lowerCost} />
+                  <SummaryLine label=" سعر أمتار الخزائن العلوية" value={calc.upperCost} />
+                  <SummaryLine label="سعر أمتار الوحدات الطولية" value={calc.tallCost} />
+                  <SummaryLine label="سعر الرخام" value={calc.marbleTotal}/>
                   {form.heightOption !== 'standard' && (
                     <SummaryLine label={calc.heightLabel} value={calc.heightCost} />
                   )}
                   <SummaryLine label="الجكات" value={calc.gasStrutCost} />
                   <SummaryLine label="الإنارة" displayText="هدية" />
-                  {form.marbleType && (
-                    <SummaryLine
-                      label="الرخام"
-                      sub={`${form.marbleType}${form.marbleCode ? ` — ${form.marbleCode}` : ''} · ${calc.marbleMeters} م × ${calc.marblePrice}`}
-                      value={calc.marbleTotal}
-                    />
-                  )}
+                 
                 </div>
 
                 <div className="border-t-2 border-dashed border-[#E4D9C8] mt-2 pt-2">
