@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Ruler, Layers, Wrench, Lightbulb, Plus, ArrowUpWideNarrow,
   Save, ClipboardList, Factory, CheckCircle2,
-  AlertCircle, Sparkles, User,
+  AlertCircle, Sparkles, User, Gem,
 } from 'lucide-react';
 
 const TABS = [
@@ -17,6 +17,8 @@ const LIGHTING_PRICE_PER_METER = 50; // سعر متر الإنارة (مخفي �
 
 const HANDLE_COLOR_OPTIONS = ['أسود', 'سلفر'];
 const HANDLE_CODE_OPTIONS = ['A', 'B', 'C'];
+
+const MARBLE_TYPE_OPTIONS = ['ستارون', 'كوارتز', 'سمارت ستون'];
 
 const num = (v) => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
 const money = (n) => (isFinite(n) ? n : 0).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
@@ -138,6 +140,10 @@ export default function KitchenPricingSystem() {
     gasStrutCount: '',
     lightingMeters: '',
     kitchenAdditions: '',
+    marbleType: '',
+    marbleCode: '',
+    marblePrice: '',
+    marbleMeters: '',
     handleSystem: 'normal',
     handleColor: HANDLE_COLOR_OPTIONS[0],
     handleCode: HANDLE_CODE_OPTIONS[0],
@@ -158,6 +164,8 @@ export default function KitchenPricingSystem() {
     const gasStrutCount = num(form.gasStrutCount);
     const lightingMeters = num(form.lightingMeters);
     const kitchenAdditions = num(form.kitchenAdditions);
+    const marblePrice = num(form.marblePrice);
+    const marbleMeters = num(form.marbleMeters);
 
     const lowerCost = lowerMeters * 0.67 * PRICE_PER_METER;
     const upperCost = upperMeters * 0.33 * PRICE_PER_METER;
@@ -176,9 +184,12 @@ export default function KitchenPricingSystem() {
     const gasStrutCost = gasStrutCount * GAS_STRUT_PRICE;
     const lightingCost = lightingMeters * LIGHTING_PRICE_PER_METER;
 
-    const total = lowerCost + upperCost + tallCost + heightCost + gasStrutCost + lightingCost + kitchenAdditions;
-    return { lowerCost, upperCost, tallCost, heightCost, heightLabel, gasStrutCost, lightingCost, kitchenAdditions, total };
-  }, [form.lowerMeters, form.upperMeters, form.tallMeters, form.heightOption, form.heightMeters, form.gasStrutCount, form.lightingMeters, form.kitchenAdditions]);
+    // قيمة الرخام = سعر المتر × عدد الأمتار — لا تُضاف إلا إذا أُدخلت القيم
+    const marbleTotal = marblePrice * marbleMeters;
+
+    const total = lowerCost + upperCost + tallCost + heightCost + gasStrutCost + lightingCost + kitchenAdditions + marbleTotal;
+    return { lowerCost, upperCost, tallCost, heightCost, heightLabel, gasStrutCost, lightingCost, kitchenAdditions, marblePrice, marbleMeters, marbleTotal, total };
+  }, [form.lowerMeters, form.upperMeters, form.tallMeters, form.heightOption, form.heightMeters, form.gasStrutCount, form.lightingMeters, form.kitchenAdditions, form.marblePrice, form.marbleMeters]);
 
   // حفظ عرض السعر داخل الجلسة الحالية فقط (بدون Server وبدون تخزين دائم)
   const saveQuote = () => {
@@ -263,6 +274,27 @@ export default function KitchenPricingSystem() {
                 <Field label="عدد الأمتار" value={form.lowerMeters} onChange={update('lowerMeters')} suffix="م" />
               </Section>
 
+              <Section icon={Gem} title="الرخام" subtitle="اختر نوع الرخام لإظهار باقي الحقول">
+                <div className="mb-3">
+                  <SelectField
+                    label="نوع الرخام"
+                    value={form.marbleType}
+                    onChange={update('marbleType')}
+                    options={[
+                      { value: '', label: 'اختر نوع الرخام' },
+                      ...MARBLE_TYPE_OPTIONS.map((o) => ({ value: o, label: o })),
+                    ]}
+                  />
+                </div>
+                {form.marbleType && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="كود الرخام" type="text" value={form.marbleCode} onChange={update('marbleCode')} placeholder="مثال: ST-205" />
+                    <Field label="سعر الرخام / متر" value={form.marblePrice} onChange={update('marblePrice')} suffix="ريال" />
+                    <Field label="عدد أمتار الرخام" value={form.marbleMeters} onChange={update('marbleMeters')} suffix="م" />
+                  </div>
+                )}
+              </Section>
+
               <Section icon={Ruler} step="2" title="أمتار الخزائن العلوية" subtitle="عدد الأمتار × 0.33 × سعر المتر">
                 <Field label="عدد الأمتار" value={form.upperMeters} onChange={update('upperMeters')} suffix="م" />
               </Section>
@@ -329,6 +361,13 @@ export default function KitchenPricingSystem() {
                   )}
                   <SummaryLine label="الجكات" value={calc.gasStrutCost} />
                   <SummaryLine label="الإنارة" displayText="هدية" />
+                  {form.marbleType && (
+                    <SummaryLine
+                      label="الرخام"
+                      sub={`${form.marbleType}${form.marbleCode ? ` — ${form.marbleCode}` : ''} · ${calc.marbleMeters} م × ${calc.marblePrice}`}
+                      value={calc.marbleTotal}
+                    />
+                  )}
                 </div>
 
                 <div className="border-t-2 border-dashed border-[#E4D9C8] mt-2 pt-2">
