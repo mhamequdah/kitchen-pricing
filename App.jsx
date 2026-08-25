@@ -314,39 +314,88 @@ export default function KitchenPricingSystem() {
                 <Field label="عدد الأمتار" value={form.tallMeters} onChange={update('tallMeters')} suffix="م" />
               </Section>
 
-              <Section icon={ArrowUpWideNarrow} step="4" title="زيادة الارتفاع" subtitle="ستاندرد = لا يُضاف شيء">
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <Pill active={form.heightOption === 'standard'} onClick={() => update('heightOption')('standard')}>ستاندرد</Pill>
-                  <Pill active={form.heightOption === 'r1'} onClick={() => update('heightOption')('r1')}>73 – 100 سم</Pill>
-                  <Pill active={form.heightOption === 'r2'} onClick={() => update('heightOption')('r2')}>101 – 140 سم</Pill>
-                </div>
-                {form.heightOption !== 'standard' && (
-                  <Field label="عدد الأمتار التي زاد ارتفاعها" value={form.heightMeters} onChange={(value) => {
-                    if (value === '') {
-                    update('heightMeters')('');
-                    return;
-                    }
+              <Section
+  icon={ArrowUpWideNarrow}
+  step="4"
+  title="زيادة الارتفاع"
+  subtitle="ستاندرد = لا يُضاف شيء"
+>
+  <div className="flex flex-wrap gap-2 mb-3">
+    <Pill
+      active={form.heightOption === 'standard'}
+      onClick={() => {
+        update('heightOption')('standard');
+        update('heightMeters')('');
+      }}
+    >
+      ستاندرد
+    </Pill>
 
-                    const num = Number(value);
+    <Pill
+      active={form.heightOption === 'r1'}
+      onClick={() => {
+        update('heightOption')('r1');
+        update('heightMeters')('');
+      }}
+    >
+      73 – 100 سم
+    </Pill>
 
-                    if (form.heightOption === 'r1') {
-                    // 73–100 سم = 0.73–1.00 متر
-                    if (num >= 0.73 && num <= 1.00) {
-                    update('heightMeters')(value);
-                      }
-                    }
+    <Pill
+      active={form.heightOption === 'r2'}
+      onClick={() => {
+        update('heightOption')('r2');
+        update('heightMeters')('');
+      }}
+    >
+      101 – 140 سم
+    </Pill>
+  </div>
 
-                    if (form.heightOption === 'r2') {
-                    // 101–140 سم = 1.01–1.40 متر
-                    if (num >= 1.01 && num <= 1.40) {
-                    update('heightMeters')(value);
-                          }
-                    }
-                    }}
-                    suffix="م"
-                    />
-                )}
-              </Section>
+  {form.heightOption !== 'standard' && (
+    <Field
+      label="عدد الأمتار التي زاد ارتفاعها"
+      type="text"
+      inputMode="decimal"
+      value={form.heightMeters}
+      onChange={update('heightMeters')}
+      suffix="م"
+      placeholder={
+        form.heightOption === 'r1'
+          ? '0.73 – 1.00'
+          : '1.01 – 1.40'
+      }
+      onBlur={() => {
+        const value = form.heightMeters;
+
+        if (value === '') return;
+
+        const num = Number(value);
+
+        if (Number.isNaN(num)) {
+          update('heightMeters')('');
+          return;
+        }
+
+        if (form.heightOption === 'r1') {
+          if (num < 0.73) {
+            update('heightMeters')('0.73');
+          } else if (num > 1.00) {
+            update('heightMeters')('1.00');
+          }
+        }
+
+        if (form.heightOption === 'r2') {
+          if (num < 1.01) {
+            update('heightMeters')('1.01');
+          } else if (num > 1.40) {
+            update('heightMeters')('1.40');
+          }
+        }
+      }}
+    />
+  )}
+</Section>
 
               <Section icon={Sparkles} step="5" title="عدد الجكات">
                 <Field label="عدد الجكات" value={form.gasStrutCount} onChange={update('gasStrutCount')} suffix="جك" />
