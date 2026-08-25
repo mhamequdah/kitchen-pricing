@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'IBM Plex Sans Arabic', sans-serif;
+}
+
+.font-display {
+  font-family: 'Almarai', sans-serif;
+}
+
+input[type=number]::-webkit-inner-spin-button {
+  opacity: 0.4;
+}
+
+input[type=date]::-webkit-calendar-picker-indicator {
+  filter: invert(48%) sepia(20%) saturate(700%) hue-rotate(2deg);
+  cursor: pointer;
+}
