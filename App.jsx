@@ -49,13 +49,24 @@ function Section({ icon: Icon, title, subtitle, step, children }) {
   );
 }
 
-function Field({ label, value, onChange, suffix, placeholder, type = 'number', inputMode }) {
+function Field({
+  label,
+  value,
+  onChange,
+  suffix,
+  placeholder,
+  type = 'number',
+  inputMode,
+  min,
+  max,
+  step,
+  onBlur,
+}) {
   const handleChange = (e) => {
     const newValue = e.target.value;
 
-    // منع القيم السالبة للحقول الرقمية
-    if (type === 'number' && Number(newValue) < 0) {
-      onChange('0');
+    // منع السالب للحقول الرقمية
+    if (type === 'number' && newValue !== '' && Number(newValue) < 0) {
       return;
     }
 
@@ -72,9 +83,12 @@ function Field({ label, value, onChange, suffix, placeholder, type = 'number', i
         <input
           type={type}
           inputMode={inputMode || (type === 'number' ? 'decimal' : undefined)}
-          min={type === 'number' ? '0' : undefined}
+          min={min}
+          max={max}
+          step={step}
           value={value}
           onChange={handleChange}
+          onBlur={onBlur}
           placeholder={placeholder || (type === 'number' ? '0' : '')}
           className="w-full rounded-lg border border-[#E4D9C8] bg-[#FDFBF8] px-3 py-2.5 text-sm text-[#2E1F17] focus:outline-none focus:ring-2 focus:ring-[#A87C2A]/30 focus:border-[#A87C2A] transition-colors"
         />
