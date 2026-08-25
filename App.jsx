@@ -283,7 +283,6 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
           backgroundColor: '#FAF6F0',
         }}
       >
-
         {/* رأس الجدول */}
         <div
           style={{
@@ -420,7 +419,6 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
             {money(quote.total)} ريال
           </span>
         </div>
-
       </div>
     </div>
   );
