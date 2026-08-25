@@ -188,9 +188,6 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
   // سعر المطبخ الكامل - سعر الرخام
   const woodworkPrice = num(quote.total) - marbleTotal;
 
-  // مجموع الأمتار الكلي
-  const totalMeters = woodworkMeters + marbleMeters;
-
   const hasMarble = !!quote.marbleType && marbleMeters > 0;
 
   return (
@@ -357,8 +354,8 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
         {/* المجموع الكلي */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 45mm 45mm',
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
             paddingTop: '5mm',
             marginTop: '2mm',
@@ -377,17 +374,6 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
 
           <span
             style={{
-              textAlign: 'center',
-              fontWeight: 800,
-              color: '#A87C2A',
-            }}
-          >
-            {money(totalMeters)} م
-          </span>
-
-          <span
-            style={{
-              textAlign: 'center',
               fontWeight: 800,
               color: '#A87C2A',
             }}
