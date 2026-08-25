@@ -178,9 +178,7 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
   const marbleMeters = num(quote.marbleMeters);
 
   // مجموع أمتار الأعمال الخشبية
-  // الخزائن السفلية × 0.67
-  // + الخزائن العلوية × 0.33
-  // + الوحدات الطولية × 1.5
+  // السفلية × 0.67 + العلوية × 0.33 + الطولية × 1.5
   const woodworkMeters =
     (lowerMeters * 0.67) +
     (upperMeters * 0.33) +
@@ -190,7 +188,9 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
   // سعر المطبخ الكامل - سعر الرخام
   const woodworkPrice = num(quote.total) - marbleTotal;
 
-  // هل يوجد رخام؟
+  // مجموع الأمتار الكلي
+  const totalMeters = woodworkMeters + marbleMeters;
+
   const hasMarble = !!quote.marbleType && marbleMeters > 0;
 
   return (
@@ -211,20 +211,11 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
       }}
     >
       {/* الشعار */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginBottom: '6mm',
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6mm' }}>
         <img
           src={LOGO_SRC}
           alt="المنى للمطابخ"
-          style={{
-            height: '20mm',
-            objectFit: 'contain',
-          }}
+          style={{ height: '20mm', objectFit: 'contain' }}
         />
       </div>
 
@@ -240,26 +231,13 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
           marginBottom: '4mm',
         }}
       >
-        <span>
-          <strong>العميل:</strong> {quote.customerName || '—'}
-        </span>
-
-        <span>
-          <strong>الهاتف:</strong> {quote.phone || '—'}
-        </span>
-
-        <span>
-          <strong>التاريخ:</strong> {quote.date || '—'}
-        </span>
+        <span><strong>العميل:</strong> {quote.customerName || '—'}</span>
+        <span><strong>الهاتف:</strong> {quote.phone || '—'}</span>
+        <span><strong>التاريخ:</strong> {quote.date || '—'}</span>
       </div>
 
       {/* خط فاصل */}
-      <div
-        style={{
-          borderTop: '1.5px solid #C89B6C',
-          marginBottom: '8mm',
-        }}
-      />
+      <div style={{ borderTop: '1.5px solid #C89B6C', marginBottom: '8mm' }} />
 
       {/* العنوان */}
       <h1
@@ -283,6 +261,7 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
           backgroundColor: '#FAF6F0',
         }}
       >
+
         {/* رأس الجدول */}
         <div
           style={{
@@ -297,14 +276,8 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
           }}
         >
           <span>التفاصيل</span>
-
-          <span style={{ textAlign: 'center' }}>
-            عدد الأمتار
-          </span>
-
-          <span style={{ textAlign: 'center' }}>
-            السعر
-          </span>
+          <span style={{ textAlign: 'center' }}>عدد الأمتار</span>
+          <span style={{ textAlign: 'center' }}>السعر</span>
         </div>
 
         {/* الأعمال الخشبية */}
@@ -318,11 +291,7 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
             fontSize: '12.5pt',
           }}
         >
-          <span
-            style={{
-              color: '#5A4C3E',
-            }}
-          >
+          <span style={{ color: '#5A4C3E' }}>
             الأعمال الخشبية
           </span>
 
@@ -359,11 +328,7 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
               fontSize: '12.5pt',
             }}
           >
-            <span
-              style={{
-                color: '#5A4C3E',
-              }}
-            >
+            <span style={{ color: '#5A4C3E' }}>
               الرخام
             </span>
 
@@ -392,8 +357,8 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
         {/* المجموع الكلي */}
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
+            display: 'grid',
+            gridTemplateColumns: '1fr 45mm 45mm',
             alignItems: 'center',
             paddingTop: '5mm',
             marginTop: '2mm',
@@ -412,6 +377,17 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
 
           <span
             style={{
+              textAlign: 'center',
+              fontWeight: 800,
+              color: '#A87C2A',
+            }}
+          >
+            {money(totalMeters)} م
+          </span>
+
+          <span
+            style={{
+              textAlign: 'center',
               fontWeight: 800,
               color: '#A87C2A',
             }}
@@ -419,6 +395,7 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
             {money(quote.total)} ريال
           </span>
         </div>
+
       </div>
     </div>
   );
