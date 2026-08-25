@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Ruler, Layers, Wrench, Lightbulb, Plus, ArrowUpWideNarrow,
   Save, ClipboardList, Factory, CheckCircle2,
-  AlertCircle, Sparkles, User, Gem,
+  AlertCircle, Sparkles, User, Gem, Printer, Loader2,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const TABS = [
   { id: 'pricing', label: 'التسعير', icon: Ruler },
@@ -155,6 +157,131 @@ function SummaryLine({ label, sub, value, strong, displayText }) {
   );
 }
 
+/* =========================================================================
+   قالب الطباعة (PDF) — يُرسَم خارج الشاشة (خارج حدود العرض) ثم يُحوَّل لصورة
+   بواسطة html2canvas، ثم يُدرَج داخل ملف PDF بحجم A4 عبر jsPDF.
+   هذه هي الطريقة الأكثر موثوقية لإخراج نص عربي RTL متصل الحروف بشكل صحيح
+   دون خادم، لأن المتصفح نفسه هو من يقوم بتهيئة (shaping) الحروف العربية.
+   ========================================================================= */
+const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, ref) {
+  if (!quote) return null;
+
+  // حساب سعر الأعمال الخشبية = سعر المطبخ الكامل - سعر الرخام (حسب الطلب)
+  const marbleTotal = num(quote.marbleTotal);
+  const woodworkPrice = num(quote.total) - marbleTotal;
+  const hasMarble = !!quote.marbleType && num(quote.marbleMeters) > 0;
+
+  const rows = [
+    { label: 'الأعمال الخشبية', value: woodworkPrice },
+  ];
+  if (hasMarble) {
+    rows.push({ label: `الرخام — ${quote.marbleMeters} متر`, value: marbleTotal });
+  }
+
+  return (
+    <div
+      ref={ref}
+      dir="rtl"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: '-10000px',
+        width: '210mm',
+        minHeight: '297mm',
+        backgroundColor: '#FFFFFF',
+        color: '#2B1F17',
+        fontFamily: "'IBM Plex Sans Arabic', sans-serif",
+        padding: '14mm',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* الشعار */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6mm' }}>
+        <img src={LOGO_SRC} alt="المنى للمطابخ" style={{ height: '20mm', objectFit: 'contain' }} />
+      </div>
+
+      {/* بيانات العميل — من اليمين: الاسم، الهاتف، التاريخ */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-start',
+          flexDirection: 'row',
+          gap: '10mm',
+          fontSize: '11pt',
+          color: '#4A3427',
+          marginBottom: '4mm',
+        }}
+      >
+        <span><strong>العميل:</strong> {quote.customerName || '—'}</span>
+        <span><strong>الهاتف:</strong> {quote.phone || '—'}</span>
+        <span><strong>التاريخ:</strong> {quote.date || '—'}</span>
+      </div>
+
+      {/* خط فاصل */}
+      <div style={{ borderTop: '1.5px solid #C89B6C', marginBottom: '8mm' }} />
+
+      {/* العنوان */}
+      <h1
+        style={{
+          textAlign: 'center',
+          fontSize: '20pt',
+          fontWeight: 800,
+          color: '#2E1F17',
+          margin: '0 0 8mm 0',
+        }}
+      >
+        عرض السعر
+      </h1>
+
+      {/* مربع التفاصيل */}
+      <div
+        style={{
+          border: '1.5px solid #E4D9C8',
+          borderRadius: '4mm',
+          padding: '6mm 8mm',
+          backgroundColor: '#FAF6F0',
+        }}
+      >
+        {rows.map((r, i) => (
+          <div
+            key={i}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '3.5mm 0',
+              borderBottom: '1px dashed #E4D9C8',
+              fontSize: '12.5pt',
+            }}
+          >
+            <span style={{ color: '#5A4C3E' }}>{r.label}</span>
+            <span style={{ fontWeight: 700, color: '#2E1F17' }}>
+              {money(r.value)} <span style={{ fontWeight: 400, fontSize: '10pt', color: '#A69682' }}>ريال</span>
+            </span>
+          </div>
+        ))}
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingTop: '5mm',
+            marginTop: '2mm',
+            borderTop: '2px dashed #C89B6C',
+            fontSize: '14pt',
+          }}
+        >
+          <span style={{ fontWeight: 800, color: '#2E1F17' }}>المجموع الكلي للمطبخ</span>
+          <span style={{ fontWeight: 800, color: '#A87C2A' }}>
+            {money(quote.total)} <span style={{ fontWeight: 400, fontSize: '10.5pt', color: '#A69682' }}>ريال</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export default function KitchenPricingSystem() {
   const [tab, setTab] = useState('pricing');
 
@@ -185,6 +312,13 @@ export default function KitchenPricingSystem() {
   const [quotes, setQuotes] = useState([]);
   const [saveMsg, setSaveMsg] = useState(null);
   const [saveErr, setSaveErr] = useState(null);
+
+  // ------- حالة الطباعة (PDF) -------
+  const [printQuote, setPrintQuote] = useState(null); // العرض الجاري تجهيزه للطباعة حاليًا
+  const [printingId, setPrintingId] = useState(null);  // لتعطيل الزر الخاص بهذا العرض أثناء العمل
+  const [printErrId, setPrintErrId] = useState(null);
+  const printRef = useRef(null);
+  const printWindowRef = useRef(null);
 
   const calc = useMemo(() => {
     const lowerMeters = num(form.lowerMeters);
@@ -236,6 +370,116 @@ export default function KitchenPricingSystem() {
       setTimeout(() => { setSaveMsg(null); setSaveErr(null); }, 3000);
     }
   };
+
+  // انتظار تحميل كل الصور داخل عنصر معيّن قبل التصوير (لضمان ظهور الشعار)
+  const waitForImages = (root) => {
+    const imgs = Array.from(root.querySelectorAll('img'));
+    return Promise.all(
+      imgs.map((img) => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      })
+    );
+  };
+
+  // إنشاء PDF لعرض سعر محدد وفتحه مباشرة في تبويب جديد
+  const handlePrintQuote = useCallback((q) => {
+    setPrintErrId(null);
+    setPrintingId(q.id);
+
+    // نفتح نافذة فارغة فورًا (ضمن نفس تفاعل المستخدم) لتفادي حجب المتصفح للنوافذ المنبثقة،
+    // ثم نضع فيها رابط الـPDF بعد تجهيزه.
+    let win = null;
+    try {
+      win = window.open('', '_blank');
+    } catch (_) {
+      win = null;
+    }
+    printWindowRef.current = win;
+
+    setPrintQuote(q);
+  }, []);
+
+  // بعد تحديث printQuote، ينتظر المكوّن رسم القالب الخفي ثم يصوّره وينشئ PDF
+  useEffect(() => {
+    if (!printQuote) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        // إطاران متتاليان لضمان اكتمال التخطيط (layout) قبل التصوير
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const node = printRef.current;
+        if (!node) throw new Error('no-node');
+
+        await waitForImages(node);
+
+        const canvas = await html2canvas(node, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#FFFFFF',
+        });
+
+        if (cancelled) return;
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        const imgWidthMm = pageWidth;
+        const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
+
+        if (imgHeightMm <= pageHeight) {
+          pdf.addImage(imgData, 'JPEG', 0, 0, imgWidthMm, imgHeightMm);
+        } else {
+          // في حال تجاوز المحتوى صفحة واحدة، نوزّعه على عدة صفحات
+          let heightLeft = imgHeightMm;
+          let position = 0;
+          pdf.addImage(imgData, 'JPEG', 0, position, imgWidthMm, imgHeightMm);
+          heightLeft -= pageHeight;
+          while (heightLeft > 0) {
+            position -= pageHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidthMm, imgHeightMm);
+            heightLeft -= pageHeight;
+          }
+        }
+
+        const fileName = `عرض-سعر-${(printQuote.customerName || 'عميل').trim() || 'عميل'}.pdf`;
+        const blobUrl = pdf.output('bloburl');
+
+        const win = printWindowRef.current;
+        if (win && !win.closed) {
+          win.location.href = blobUrl;
+        } else {
+          // إن مُنعت النافذة المنبثقة، نفتح واحدة جديدة مباشرة كخطة بديلة
+          window.open(blobUrl, '_blank');
+        }
+        // إتاحة تنزيل الملف أيضًا باسم واضح (لا يمنع فتحه في التبويب أعلاه)
+        void fileName;
+      } catch (err) {
+        if (!cancelled) {
+          setPrintErrId(printQuote.id);
+          const win = printWindowRef.current;
+          if (win && !win.closed) win.close();
+        }
+      } finally {
+        if (!cancelled) {
+          setPrintingId(null);
+          setPrintQuote(null);
+        }
+      }
+    };
+
+    run();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printQuote]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-[#FAF6F0] text-[#2B1F17] pb-20 lg:pb-10" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif" }}>
@@ -511,17 +755,41 @@ export default function KitchenPricingSystem() {
               </div>
             ) : (
               <div className="space-y-3">
-                {quotes.map((q) => (
-                  <div key={q.id} className="bg-white rounded-xl border border-[#E4D9C8] p-4 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-[#2E1F17]">{q.customerName || 'بدون اسم عميل'}</p>
-                      <p className="text-[11px] text-[#A69682] mt-0.5">
-                        {q.phone ? `${q.phone} · ` : ''}{q.date || ''}
-                      </p>
+                {quotes.map((q) => {
+                  const isPrinting = printingId === q.id;
+                  const hadError = printErrId === q.id;
+                  return (
+                    <div key={q.id} className="bg-white rounded-xl border border-[#E4D9C8] p-4 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-[#2E1F17]">{q.customerName || 'بدون اسم عميل'}</p>
+                        <p className="text-[11px] text-[#A69682] mt-0.5">
+                          {q.phone ? `${q.phone} · ` : ''}{q.date || ''}
+                        </p>
+                        {hadError && (
+                          <p className="flex items-center gap-1 text-[10.5px] text-[#B0432E] mt-1">
+                            <AlertCircle className="w-3 h-3" /> تعذر إنشاء الملف، حاول مرة أخرى
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-[#A87C2A] tabular-nums">{money(q.total)} ريال</p>
+                        <button
+                          type="button"
+                          onClick={() => handlePrintQuote(q)}
+                          disabled={isPrinting}
+                          title="طباعة عرض السعر"
+                          className="w-8 h-8 shrink-0 rounded-lg border border-[#E4D9C8] bg-[#FDFBF8] flex items-center justify-center text-[#8A7A68] hover:text-[#A87C2A] hover:border-[#C89B6C] transition-colors disabled:opacity-60"
+                        >
+                          {isPrinting ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Printer className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-sm font-bold text-[#A87C2A] tabular-nums">{money(q.total)} ريال</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -545,6 +813,9 @@ export default function KitchenPricingSystem() {
           <span className="text-base font-bold text-[#A87C2A] tabular-nums">{money(calc.total)} ريال</span>
         </div>
       )}
+
+      {/* قالب الطباعة الخفي — يُرسَم فقط عندما يوجد عرض قيد التجهيز للطباعة */}
+      <PdfQuoteTemplate ref={printRef} quote={printQuote} />
     </div>
   );
 }
