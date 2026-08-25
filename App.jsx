@@ -163,7 +163,7 @@ function SummaryLine({ label, sub, value, strong, displayText }) {
    هذه هي الطريقة الأكثر موثوقية لإخراج نص عربي RTL متصل الحروف بشكل صحيح
    دون خادم، لأن المتصفح نفسه هو من يقوم بتهيئة (shaping) الحروف العربية.
    ========================================================================= */
-onst PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, ref) {
+const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, ref) {
   if (!quote) return null;
 
   // =========================
