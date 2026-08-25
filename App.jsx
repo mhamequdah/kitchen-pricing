@@ -307,7 +307,30 @@ export default function KitchenPricingSystem() {
                   <Pill active={form.heightOption === 'r2'} onClick={() => update('heightOption')('r2')}>101 – 140 سم</Pill>
                 </div>
                 {form.heightOption !== 'standard' && (
-                  <Field label="عدد الأمتار التي زاد ارتفاعها" value={form.heightMeters} onChange={update('heightMeters')} suffix="م" />
+                  <Field label="عدد الأمتار التي زاد ارتفاعها" value={form.heightMeters} onChange={(value) => {
+                    if (value === '') {
+                    update('heightMeters')('');
+                    return;
+                    }
+
+                    const num = Number(value);
+
+                    if (form.heightOption === 'r1') {
+                    // 73–100 سم = 0.73–1.00 متر
+                    if (num >= 0.73 && num <= 1.00) {
+                    update('heightMeters')(value);
+                      }
+                    }
+
+                    if (form.heightOption === 'r2') {
+                    // 101–140 سم = 1.01–1.40 متر
+                    if (num >= 1.01 && num <= 1.40) {
+                    update('heightMeters')(value);
+                          }
+                    }
+                    }}
+                    suffix="م"
+                    />
                 )}
               </Section>
 
