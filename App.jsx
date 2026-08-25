@@ -171,11 +171,26 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
   const woodworkPrice = num(quote.total) - marbleTotal;
   const hasMarble = !!quote.marbleType && num(quote.marbleMeters) > 0;
 
-  const rows = [
-    { label: 'الأعمال الخشبية', value: woodworkPrice },
-  ];
-  if (hasMarble) {
-    rows.push({ label: `الرخام — ${quote.marbleMeters} متر`, value: marbleTotal });
+  // حساب مجموع أمتار الأعمال الخشبية
+const marbleTotal = num(quote.marbleTotal);
+
+const lowerMeters = num(quote.lowerMeters);
+const upperMeters = num(quote.upperMeters);
+const tallMeters = num(quote.tallMeters);
+
+const woodworkMeters =
+  (lowerMeters * 0.67) +
+  (upperMeters * 0.33) +
+  (tallMeters * 1.5);
+
+const hasMarble = !!quote.marbleType && num(quote.marbleMeters) > 0;
+
+const rows = [
+  { label: 'الأعمال الخشبية مجموع عدد الامتار :', value: woodworkMeters },
+];
+
+if (hasMarble) {
+    rows.push({ label: ` الرخام مجموع عدد الامتار — ${quote.marbleMeters} متر`, value: marbleTotal });
   }
 
   return (
