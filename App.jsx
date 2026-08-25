@@ -354,7 +354,7 @@ export default function KitchenPricingSystem() {
 
   {form.heightOption !== 'standard' && (
     <Field
-      label="عدد الأمتار التي زاد ارتفاعه(ادخل القيمة بال cm)ا"
+      label="عدد الأمتار التي زاد ارتفاعه(ادخل القيمة بال cm)"
       type="text"
       inputMode="decimal"
       value={form.heightMeters}
