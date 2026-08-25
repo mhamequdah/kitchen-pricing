@@ -50,18 +50,35 @@ function Section({ icon: Icon, title, subtitle, step, children }) {
 }
 
 function Field({ label, value, onChange, suffix, placeholder, type = 'number', inputMode }) {
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+
+    // منع القيم السالبة للحقول الرقمية
+    if (type === 'number' && Number(newValue) < 0) {
+      onChange('0');
+      return;
+    }
+
+    onChange(newValue);
+  };
+
   return (
     <label className="block">
-      <span className="block text-xs font-medium text-[#6B5B4B] mb-1.5">{label}</span>
+      <span className="block text-xs font-medium text-[#6B5B4B] mb-1.5">
+        {label}
+      </span>
+
       <div className="relative">
         <input
           type={type}
           inputMode={inputMode || (type === 'number' ? 'decimal' : undefined)}
+          min={type === 'number' ? '0' : undefined}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={handleChange}
           placeholder={placeholder || (type === 'number' ? '0' : '')}
           className="w-full rounded-lg border border-[#E4D9C8] bg-[#FDFBF8] px-3 py-2.5 text-sm text-[#2E1F17] focus:outline-none focus:ring-2 focus:ring-[#A87C2A]/30 focus:border-[#A87C2A] transition-colors"
         />
+
         {suffix && (
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#8A7A68] pointer-events-none">
             {suffix}
@@ -71,7 +88,6 @@ function Field({ label, value, onChange, suffix, placeholder, type = 'number', i
     </label>
   );
 }
-
 function SelectField({ label, value, onChange, options }) {
   return (
     <label className="block">
