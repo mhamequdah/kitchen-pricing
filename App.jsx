@@ -166,32 +166,32 @@ function SummaryLine({ label, sub, value, strong, displayText }) {
 const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, ref) {
   if (!quote) return null;
 
-  // حساب سعر الأعمال الخشبية = سعر المطبخ الكامل - سعر الرخام (حسب الطلب)
+  // =========================
+  // حسابات الطباعة فقط
+  // =========================
+
   const marbleTotal = num(quote.marbleTotal);
+
+  const lowerMeters = num(quote.lowerMeters);
+  const upperMeters = num(quote.upperMeters);
+  const tallMeters = num(quote.tallMeters);
+  const marbleMeters = num(quote.marbleMeters);
+
+  // مجموع أمتار الأعمال الخشبية
+  // السفلية × 0.67 + العلوية × 0.33 + الطولية × 1.5
+  const woodworkMeters =
+    (lowerMeters * 0.67) +
+    (upperMeters * 0.33) +
+    (tallMeters * 1.5);
+
+  // سعر الأعمال الخشبية
+  // سعر المطبخ الكامل - سعر الرخام
   const woodworkPrice = num(quote.total) - marbleTotal;
-  const hasMarble = !!quote.marbleType && num(quote.marbleMeters) > 0;
 
-  // حساب مجموع أمتار الأعمال الخشبية
-const marbleTotal = num(quote.marbleTotal);
+  // مجموع الأمتار الكلي
+  const totalMeters = woodworkMeters + marbleMeters;
 
-const lowerMeters = num(quote.lowerMeters);
-const upperMeters = num(quote.upperMeters);
-const tallMeters = num(quote.tallMeters);
-
-const woodworkMeters =
-  (lowerMeters * 0.67) +
-  (upperMeters * 0.33) +
-  (tallMeters * 1.5);
-
-const hasMarble = !!quote.marbleType && num(quote.marbleMeters) > 0;
-
-const rows = [
-  { label: 'الأعمال الخشبية مجموع عدد الامتار :', value: woodworkMeters },
-];
-
-if (hasMarble) {
-    rows.push({ label: ` الرخام مجموع عدد الامتار — ${quote.marbleMeters} متر`, value: marbleTotal });
-  }
+  const hasMarble = !!quote.marbleType && marbleMeters > 0;
 
   return (
     <div
@@ -212,10 +212,14 @@ if (hasMarble) {
     >
       {/* الشعار */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6mm' }}>
-        <img src={LOGO_SRC} alt="المنى للمطابخ" style={{ height: '20mm', objectFit: 'contain' }} />
+        <img
+          src={LOGO_SRC}
+          alt="المنى للمطابخ"
+          style={{ height: '20mm', objectFit: 'contain' }}
+        />
       </div>
 
-      {/* بيانات العميل — من اليمين: الاسم، الهاتف، التاريخ */}
+      {/* بيانات العميل */}
       <div
         style={{
           display: 'flex',
@@ -257,29 +261,104 @@ if (hasMarble) {
           backgroundColor: '#FAF6F0',
         }}
       >
-        {rows.map((r, i) => (
-          <div
-            key={i}
+
+        {/* رأس الجدول */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 45mm 45mm',
+            alignItems: 'center',
+            paddingBottom: '3mm',
+            borderBottom: '2px solid #C89B6C',
+            fontSize: '11pt',
+            fontWeight: 800,
+            color: '#4A3427',
+          }}
+        >
+          <span>التفاصيل</span>
+          <span style={{ textAlign: 'center' }}>عدد الأمتار</span>
+          <span style={{ textAlign: 'center' }}>السعر</span>
+        </div>
+
+        {/* الأعمال الخشبية */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 45mm 45mm',
+            alignItems: 'center',
+            padding: '4mm 0',
+            borderBottom: '1px dashed #E4D9C8',
+            fontSize: '12.5pt',
+          }}
+        >
+          <span style={{ color: '#5A4C3E' }}>
+            الأعمال الخشبية
+          </span>
+
+          <span
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
+              textAlign: 'center',
+              fontWeight: 700,
+              color: '#2E1F17',
+            }}
+          >
+            {money(woodworkMeters)} م
+          </span>
+
+          <span
+            style={{
+              textAlign: 'center',
+              fontWeight: 700,
+              color: '#2E1F17',
+            }}
+          >
+            {money(woodworkPrice)} ريال
+          </span>
+        </div>
+
+        {/* الرخام */}
+        {hasMarble && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 45mm 45mm',
               alignItems: 'center',
-              padding: '3.5mm 0',
+              padding: '4mm 0',
               borderBottom: '1px dashed #E4D9C8',
               fontSize: '12.5pt',
             }}
           >
-            <span style={{ color: '#5A4C3E' }}>{r.label}</span>
-            <span style={{ fontWeight: 700, color: '#2E1F17' }}>
-              {money(r.value)} <span style={{ fontWeight: 400, fontSize: '10pt', color: '#A69682' }}>ريال</span>
+            <span style={{ color: '#5A4C3E' }}>
+              الرخام
+            </span>
+
+            <span
+              style={{
+                textAlign: 'center',
+                fontWeight: 700,
+                color: '#2E1F17',
+              }}
+            >
+              {money(marbleMeters)} م
+            </span>
+
+            <span
+              style={{
+                textAlign: 'center',
+                fontWeight: 700,
+                color: '#2E1F17',
+              }}
+            >
+              {money(marbleTotal)} ريال
             </span>
           </div>
-        ))}
+        )}
 
+        {/* المجموع الكلي */}
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
+            display: 'grid',
+            gridTemplateColumns: '1fr 45mm 45mm',
             alignItems: 'center',
             paddingTop: '5mm',
             marginTop: '2mm',
@@ -287,16 +366,40 @@ if (hasMarble) {
             fontSize: '14pt',
           }}
         >
-          <span style={{ fontWeight: 800, color: '#2E1F17' }}>المجموع الكلي للمطبخ</span>
-          <span style={{ fontWeight: 800, color: '#A87C2A' }}>
-            {money(quote.total)} <span style={{ fontWeight: 400, fontSize: '10.5pt', color: '#A69682' }}>ريال</span>
+          <span
+            style={{
+              fontWeight: 800,
+              color: '#2E1F17',
+            }}
+          >
+            المجموع الكلي
+          </span>
+
+          <span
+            style={{
+              textAlign: 'center',
+              fontWeight: 800,
+              color: '#A87C2A',
+            }}
+          >
+            {money(totalMeters)} م
+          </span>
+
+          <span
+            style={{
+              textAlign: 'center',
+              fontWeight: 800,
+              color: '#A87C2A',
+            }}
+          >
+            {money(quote.total)} ريال
           </span>
         </div>
+
       </div>
     </div>
   );
 });
-
 export default function KitchenPricingSystem() {
   const [tab, setTab] = useState('pricing');
 
