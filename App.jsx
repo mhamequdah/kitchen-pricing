@@ -366,7 +366,7 @@ export default function KitchenPricingSystem() {
                 </div>
 
                 <div className="border-t-2 border-dashed border-[#E4D9C8] mt-2 pt-2">
-                  <SummaryLine label="قيمة المطبخ (الأعمال الخشبية)" value={calc.total} strong />
+                  <SummaryLine label="قيمة المطبخ" value={calc.total} strong />
                 </div>
 
                 <button
