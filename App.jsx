@@ -23,7 +23,7 @@ const money = (n) => (isFinite(n) ? n : 0).toLocaleString('en-US', { maximumFrac
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 // مسار الشعار داخل مجلد public/assets — يحترم إعداد base في vite.config.js
-const LOGO_SRC = `${import.meta.env.BASE_URL}assets/logo.png`;
+const LOGO_SRC = `${import.meta.env.BASE_URL}logo.png`;
 
 function Section({ icon: Icon, title, subtitle, step, children }) {
   return (
