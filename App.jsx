@@ -274,26 +274,7 @@ export default function KitchenPricingSystem() {
                 <Field label="عدد الأمتار" value={form.lowerMeters} onChange={update('lowerMeters')} suffix="م" />
               </Section>
 
-              <Section icon={Gem} title="الرخام" subtitle="اختر نوع الرخام لإظهار باقي الحقول">
-                <div className="mb-3">
-                  <SelectField
-                    label="نوع الرخام"
-                    value={form.marbleType}
-                    onChange={update('marbleType')}
-                    options={[
-                      { value: '', label: 'اختر نوع الرخام' },
-                      ...MARBLE_TYPE_OPTIONS.map((o) => ({ value: o, label: o })),
-                    ]}
-                  />
-                </div>
-                {form.marbleType && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field label="كود الرخام" type="text" value={form.marbleCode} onChange={update('marbleCode')} placeholder="مثال: ST-205" />
-                    <Field label="سعر الرخام / متر" value={form.marblePrice} onChange={update('marblePrice')} suffix="ريال" />
-                    <Field label="عدد أمتار الرخام" value={form.marbleMeters} onChange={update('marbleMeters')} suffix="م" />
-                  </div>
-                )}
-              </Section>
+
 
               <Section icon={Ruler} step="2" title="أمتار الخزائن العلوية" subtitle="عدد الأمتار × 0.33 × سعر المتر">
                 <Field label="عدد الأمتار" value={form.upperMeters} onChange={update('upperMeters')} suffix="م" />
@@ -337,6 +318,26 @@ export default function KitchenPricingSystem() {
                   <SelectField label="اللون" value={form.handleColor} onChange={update('handleColor')} options={HANDLE_COLOR_OPTIONS} />
                 ) : (
                   <SelectField label="كود المقبض" value={form.handleCode} onChange={update('handleCode')} options={HANDLE_CODE_OPTIONS} />
+                )}
+              </Section>
+                            <Section icon={Gem} title="الرخام" subtitle="اختر نوع الرخام لإظهار باقي الحقول">
+                <div className="mb-3">
+                  <SelectField
+                    label="نوع الرخام"
+                    value={form.marbleType}
+                    onChange={update('marbleType')}
+                    options={[
+                      { value: '', label: 'اختر نوع الرخام' },
+                      ...MARBLE_TYPE_OPTIONS.map((o) => ({ value: o, label: o })),
+                    ]}
+                  />
+                </div>
+                {form.marbleType && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="كود الرخام" type="text" value={form.marbleCode} onChange={update('marbleCode')} placeholder="مثال: ST-205" />
+                    <Field label="سعر الرخام / متر" value={form.marblePrice} onChange={update('marblePrice')} suffix="ريال" />
+                    <Field label="عدد أمتار الرخام" value={form.marbleMeters} onChange={update('marbleMeters')} suffix="م" />
+                  </div>
                 )}
               </Section>
             </div>
