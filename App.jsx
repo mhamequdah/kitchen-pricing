@@ -375,15 +375,7 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
             المجموع الكلي
           </span>
 
-          <span
-            style={{
-              textAlign: 'center',
-              fontWeight: 800,
-              color: '#A87C2A',
-            }}
-          >
-            {money(totalMeters)} م
-          </span>
+          <span />
 
           <span
             style={{
