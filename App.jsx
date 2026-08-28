@@ -39,9 +39,137 @@ const HEIGHT_LABELS = {
   r3: 'ارتفاع مزدوج (Double-height)',
 };
 
+/* =========================================================================
+   أسعار قسم "إضافات في المطبخ" — ثابتة داخل الكود ومخفية عن المستخدم
+   ========================================================================= */
+const FRIDGE_SIDES_PRICE_LOW = 400;  // طول ≤ 240 سم
+const FRIDGE_SIDES_PRICE_HIGH = 600; // طول > 240 سم
+const FRIDGE_SIDES_LENGTH_THRESHOLD = 240;
+
+const COUNTER_CLOSURE_PRICE_PER_METER = 450;
+
+const EXTRA_DRAWER_PRICE = 450;
+
+const GLASS_DOOR_FRAME_PRICES = {
+  normal: 300,
+  blackSmall: 450,
+  blackLarge: 850,
+};
+const GLASS_DOOR_FRAME_OPTIONS = [
+  { value: 'normal', label: 'فريم عادي' },
+  { value: 'blackSmall', label: 'فريم أسود صغير' },
+  { value: 'blackLarge', label: 'فريم أسود كبير' },
+];
+
+const SHELF_6CM_PRICE = 400;
+
+const WALL_CLADDING_WOOD_PRICE_PER_METER = 450;
+
+const MAJLIS_PRICES = {
+  small: 600,
+  large: 1000,
+  double: 1300,
+};
+const MAJLIS_OPTIONS = [
+  { value: 'small', label: 'صغير' },
+  { value: 'large', label: 'كبير' },
+  { value: 'double', label: 'حوضين' },
+];
+
+// القيمة الافتراضية لكائن الإضافات
+const DEFAULT_ADDITIONS = {
+  fridgeSides: { enabled: false, length: '' },
+  counterClosure: { enabled: false, meters: '' },
+  extraDrawers: { enabled: false, count: '' },
+  glassDoors: { enabled: false, frameType: 'normal', count: '' },
+  shelves6cm: { enabled: false, count: '' },
+  wallCladding: {
+    enabled: false,
+    type: 'wood', // wood | marble
+    meters: '',
+    marbleType: '',
+    marbleCode: '',
+    marbleMeters: '',
+    marblePrice: '',
+  },
+  majlis: { enabled: false, type: 'small' },
+  otherAdditions: { enabled: false, price: '' },
+};
+
 const num = (v) => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
 const money = (n) => (isFinite(n) ? n : 0).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+// حساب تكلفة كل إضافة مفعّلة داخل قسم "إضافات في المطبخ" + الإجمالي
+function computeAdditionsCost(additions) {
+  const a = additions || {};
+  let total = 0;
+  const breakdown = {};
+
+  // 1. جوانب ثلاجة
+  if (a.fridgeSides?.enabled) {
+    const length = num(a.fridgeSides.length);
+    const price = length > FRIDGE_SIDES_LENGTH_THRESHOLD ? FRIDGE_SIDES_PRICE_HIGH : FRIDGE_SIDES_PRICE_LOW;
+    breakdown.fridgeSides = length > 0 ? price : 0;
+    total += breakdown.fridgeSides;
+  }
+
+  // 2. تسكيرة كاونتر
+  if (a.counterClosure?.enabled) {
+    const meters = num(a.counterClosure.meters);
+    breakdown.counterClosure = meters * COUNTER_CLOSURE_PRICE_PER_METER;
+    total += breakdown.counterClosure;
+  }
+
+  // 3. أدراج إضافية
+  if (a.extraDrawers?.enabled) {
+    const count = num(a.extraDrawers.count);
+    breakdown.extraDrawers = count * EXTRA_DRAWER_PRICE;
+    total += breakdown.extraDrawers;
+  }
+
+  // 4. أبواب زجاجية
+  if (a.glassDoors?.enabled) {
+    const count = num(a.glassDoors.count);
+    const unitPrice = GLASS_DOOR_FRAME_PRICES[a.glassDoors.frameType] || 0;
+    breakdown.glassDoors = count * unitPrice;
+    total += breakdown.glassDoors;
+  }
+
+  // 5. الأرفف سماكة 6cm
+  if (a.shelves6cm?.enabled) {
+    const count = num(a.shelves6cm.count);
+    breakdown.shelves6cm = count * SHELF_6CM_PRICE;
+    total += breakdown.shelves6cm;
+  }
+
+  // 6. تلبيس الجدران (خشب أو رخام)
+  if (a.wallCladding?.enabled) {
+    if (a.wallCladding.type === 'marble') {
+      const meters = num(a.wallCladding.marbleMeters);
+      const price = num(a.wallCladding.marblePrice);
+      breakdown.wallCladding = meters * price;
+    } else {
+      const meters = num(a.wallCladding.meters);
+      breakdown.wallCladding = meters * WALL_CLADDING_WOOD_PRICE_PER_METER;
+    }
+    total += breakdown.wallCladding;
+  }
+
+  // 7. مجلس
+  if (a.majlis?.enabled) {
+    breakdown.majlis = MAJLIS_PRICES[a.majlis.type] || 0;
+    total += breakdown.majlis;
+  }
+
+  // 8. إضافات أخرى (سعر يدوي)
+  if (a.otherAdditions?.enabled) {
+    breakdown.otherAdditions = num(a.otherAdditions.price);
+    total += breakdown.otherAdditions;
+  }
+
+  return { total, breakdown };
+}
 
 // مسار الشعار داخل مجلد public/assets — يحترم إعداد base في vite.config.js
 const LOGO_SRC = `${import.meta.env.BASE_URL}assets/logo.png`;
@@ -156,6 +284,40 @@ function Pill({ active, onClick, children }) {
   );
 }
 
+// خانة اختيار (Checkbox) بسيطة بنفس هوية التصميم
+function Checkbox({ label, checked, onChange }) {
+  return (
+    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="w-4 h-4 rounded border-[#C89B6C] text-[#A87C2A] accent-[#A87C2A] focus:outline-none focus:ring-2 focus:ring-[#A87C2A]/30 shrink-0"
+      />
+      <span className="text-[13px] font-bold text-[#2E1F17]">{label}</span>
+    </label>
+  );
+}
+
+// صندوق إضافة واحدة: يحتوي الـCheckbox، وعند التفعيل يعرض تفاصيلها
+function AdditionBlock({ label, checked, onToggle, cost, children }) {
+  return (
+    <div className={`rounded-xl border p-3.5 transition-colors ${checked ? 'border-[#C89B6C] bg-[#FDFBF8]' : 'border-[#E4D9C8] bg-white'}`}>
+      <div className="flex items-center justify-between">
+        <Checkbox label={label} checked={checked} onChange={onToggle} />
+        {checked && cost > 0 && (
+          <span className="text-[12px] font-bold text-[#A87C2A] tabular-nums">{money(cost)} ريال</span>
+        )}
+      </div>
+      {checked && (
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SummaryLine({ label, sub, value, strong, displayText }) {
   return (
     <div className="flex items-start justify-between py-2">
@@ -188,6 +350,7 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
   // =========================
 
   const marbleTotal = num(quote.marbleTotal);
+  const additionsTotal = num(quote.additionsTotal);
 
   const lowerMeters = num(quote.lowerMeters);
   const upperMeters = num(quote.upperMeters);
@@ -201,12 +364,13 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
     (upperMeters * 0.33) +
     (tallMeters * 1.5);
 
-  // سعر الأعمال الخشبية = سعر المطبخ الكامل - سعر الرخام
+  // سعر الأعمال الخشبية = سعر المطبخ الكامل - سعر الرخام - إجمالي الإضافات
   // (تبقى هذه الطريقة صحيحة بغض النظر عن سعر المتر المُدخل أو تداخل زيادة الارتفاع مع
   // العلوية، لأنها تُشتق من الإجمالي المحفوظ الذي يعتمد على الحسبة الصحيحة الجديدة)
-  const woodworkPrice = num(quote.total) - marbleTotal;
+  const woodworkPrice = num(quote.total) - marbleTotal - additionsTotal;
 
   const hasMarble = !!quote.marbleType && marbleMeters > 0;
+  const hasAdditions = additionsTotal > 0;
 
   return (
     <div
@@ -369,6 +533,36 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
           </div>
         )}
 
+        {/* الإضافات */}
+        {hasAdditions && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 45mm 45mm',
+              alignItems: 'center',
+              padding: '4mm 0',
+              borderBottom: '1px dashed #E4D9C8',
+              fontSize: '12.5pt',
+            }}
+          >
+            <span style={{ color: '#5A4C3E' }}>
+              إضافات في المطبخ
+            </span>
+
+            <span style={{ textAlign: 'center' }}>—</span>
+
+            <span
+              style={{
+                textAlign: 'center',
+                fontWeight: 700,
+                color: '#2E1F17',
+              }}
+            >
+              {money(additionsTotal)} ريال
+            </span>
+          </div>
+        )}
+
         {/* المجموع الكلي */}
         <div
           style={{
@@ -423,7 +617,7 @@ export default function KitchenPricingSystem() {
     gasStrutType: '', // hk | hj
     gasStrutCount: '',
     lightingMeters: '',
-    kitchenAdditions: '',
+    additions: DEFAULT_ADDITIONS,
     marbleType: '',
     marbleCode: '',
     marblePrice: '',
@@ -433,6 +627,26 @@ export default function KitchenPricingSystem() {
     handleCode: HANDLE_CODE_OPTIONS[0],
   });
   const update = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+
+  // تحديث حقل داخل إضافة معيّنة (مثال: additions.fridgeSides.length)
+  const updateAddition = (key, field) => (val) =>
+    setForm((f) => ({
+      ...f,
+      additions: {
+        ...f.additions,
+        [key]: { ...f.additions[key], [field]: val },
+      },
+    }));
+
+  // تفعيل/إلغاء تفعيل إضافة معيّنة
+  const toggleAddition = (key) => (checked) =>
+    setForm((f) => ({
+      ...f,
+      additions: {
+        ...f.additions,
+        [key]: { ...f.additions[key], enabled: checked },
+      },
+    }));
 
   // العروض المحفوظة تُخزَّن مؤقتًا داخل React state فقط (بدون Database وبدون window.storage)
   // البيانات تُفقد عند إعادة تحميل الصفحة أو إغلاقها — كما هو مطلوب لتطبيق Client-side بالكامل
@@ -456,7 +670,6 @@ export default function KitchenPricingSystem() {
     const heightMeters = num(form.heightMeters);
     const gasStrutCount = num(form.gasStrutCount);
     const lightingMeters = num(form.lightingMeters);
-    const kitchenAdditions = num(form.kitchenAdditions);
     const marblePrice = num(form.marblePrice);
     const marbleMeters = num(form.marbleMeters);
 
@@ -498,13 +711,18 @@ export default function KitchenPricingSystem() {
     // قيمة الرخام = سعر المتر × عدد الأمتار — لا تُضاف إلا إذا أُدخلت القيم
     const marbleTotal = marblePrice * marbleMeters;
 
-    const total = lowerCost + upperCost + tallCost + heightCost + gasStrutCost + kitchenAdditions + marbleTotal +lightingCost;
+    // إجمالي قسم "إضافات في المطبخ" (Checkboxes)
+    const additionsResult = computeAdditionsCost(form.additions);
+    const additionsTotal = additionsResult.total;
+
+    const total = lowerCost + upperCost + tallCost + heightCost + gasStrutCost + additionsTotal + marbleTotal + lightingCost;
     return {
       pricePerMeter,
       lowerCost, upperCost, tallCost,
       heightCost, heightLabel, heightError,
       gasStrutUnitPrice, gasStrutCost,
-      lightingCost, kitchenAdditions,
+      lightingCost,
+      additionsTotal, additionsBreakdown: additionsResult.breakdown,
       marblePrice, marbleMeters, marbleTotal,
       total,
     };
@@ -513,7 +731,7 @@ export default function KitchenPricingSystem() {
     form.lowerMeters, form.upperMeters, form.tallMeters,
     form.heightOption, form.heightMeters,
     form.gasStrutType, form.gasStrutCount,
-    form.lightingMeters, form.kitchenAdditions,
+    form.lightingMeters, form.additions,
     form.marblePrice, form.marbleMeters,
   ]);
 
@@ -811,8 +1029,189 @@ export default function KitchenPricingSystem() {
                 <Field label="عدد أمتار الإنارة" value={form.lightingMeters} onChange={update('lightingMeters')} suffix="م" />
               </Section>
 
-              <Section icon={Plus} step="7" title="إضافات في المطبخ" subtitle="قيمة تُدخل يدويًا مؤقتًا لحين تحديد بنودها وأسعارها">
-                <Field label="قيمة الإضافات" value={form.kitchenAdditions} onChange={update('kitchenAdditions')} suffix="ريال" />
+              <Section icon={Plus} step="7" title="إضافات في المطبخ" subtitle="فعّل الإضافات المطلوبة فقط — التفاصيل تظهر عند التفعيل">
+                <div className="space-y-2.5">
+
+                  {/* 1. جوانب ثلاجة */}
+                  <AdditionBlock
+                    label="جوانب ثلاجة"
+                    checked={form.additions.fridgeSides.enabled}
+                    onToggle={toggleAddition('fridgeSides')}
+                    cost={calc.additionsBreakdown.fridgeSides}
+                  >
+                    <Field
+                      label="الطول"
+                      value={form.additions.fridgeSides.length}
+                      onChange={updateAddition('fridgeSides', 'length')}
+                      suffix="cm"
+                    />
+                  </AdditionBlock>
+
+                  {/* 2. تسكيرة كاونتر */}
+                  <AdditionBlock
+                    label="تسكيرة كاونتر"
+                    checked={form.additions.counterClosure.enabled}
+                    onToggle={toggleAddition('counterClosure')}
+                    cost={calc.additionsBreakdown.counterClosure}
+                  >
+                    <Field
+                      label="عدد الأمتار"
+                      value={form.additions.counterClosure.meters}
+                      onChange={updateAddition('counterClosure', 'meters')}
+                      suffix="م"
+                    />
+                  </AdditionBlock>
+
+                  {/* 3. الأدراج الإضافية */}
+                  <AdditionBlock
+                    label="أدراج إضافية"
+                    checked={form.additions.extraDrawers.enabled}
+                    onToggle={toggleAddition('extraDrawers')}
+                    cost={calc.additionsBreakdown.extraDrawers}
+                  >
+                    <Field
+                      label="عدد الأدراج"
+                      value={form.additions.extraDrawers.count}
+                      onChange={updateAddition('extraDrawers', 'count')}
+                      suffix="درج"
+                    />
+                  </AdditionBlock>
+
+                  {/* 4. الأبواب الزجاجية */}
+                  <AdditionBlock
+                    label="أبواب زجاجية"
+                    checked={form.additions.glassDoors.enabled}
+                    onToggle={toggleAddition('glassDoors')}
+                    cost={calc.additionsBreakdown.glassDoors}
+                  >
+                    <SelectField
+                      label="نوع الفريم"
+                      value={form.additions.glassDoors.frameType}
+                      onChange={updateAddition('glassDoors', 'frameType')}
+                      options={GLASS_DOOR_FRAME_OPTIONS}
+                    />
+                    <Field
+                      label="عدد الأبواب"
+                      value={form.additions.glassDoors.count}
+                      onChange={updateAddition('glassDoors', 'count')}
+                      suffix="باب"
+                    />
+                  </AdditionBlock>
+
+                  {/* 5. الأرفف سماكة 6cm */}
+                  <AdditionBlock
+                    label="أرفف سماكة 6cm"
+                    checked={form.additions.shelves6cm.enabled}
+                    onToggle={toggleAddition('shelves6cm')}
+                    cost={calc.additionsBreakdown.shelves6cm}
+                  >
+                    <Field
+                      label="عدد الأرفف"
+                      value={form.additions.shelves6cm.count}
+                      onChange={updateAddition('shelves6cm', 'count')}
+                      suffix="رف"
+                    />
+                  </AdditionBlock>
+
+                  {/* 6. تلبيس الجدران */}
+                  <AdditionBlock
+                    label="تلبيس الجدران"
+                    checked={form.additions.wallCladding.enabled}
+                    onToggle={toggleAddition('wallCladding')}
+                    cost={calc.additionsBreakdown.wallCladding}
+                  >
+                    <div className="sm:col-span-2 flex gap-2 -mt-1 mb-1">
+                      <Pill
+                        active={form.additions.wallCladding.type === 'wood'}
+                        onClick={() => updateAddition('wallCladding', 'type')('wood')}
+                      >
+                        خشب
+                      </Pill>
+                      <Pill
+                        active={form.additions.wallCladding.type === 'marble'}
+                        onClick={() => updateAddition('wallCladding', 'type')('marble')}
+                      >
+                        رخام
+                      </Pill>
+                    </div>
+
+                    {form.additions.wallCladding.type === 'wood' ? (
+                      <Field
+                        label="عدد الأمتار"
+                        value={form.additions.wallCladding.meters}
+                        onChange={updateAddition('wallCladding', 'meters')}
+                        suffix="م"
+                      />
+                    ) : (
+                      <>
+                        <SelectField
+                          label="نوع الرخام"
+                          value={form.additions.wallCladding.marbleType}
+                          onChange={updateAddition('wallCladding', 'marbleType')}
+                          options={[
+                            { value: '', label: 'اختر نوع الرخام' },
+                            ...MARBLE_TYPE_OPTIONS.map((o) => ({ value: o, label: o })),
+                          ]}
+                        />
+                        <Field
+                          label="كود الرخام"
+                          type="text"
+                          value={form.additions.wallCladding.marbleCode}
+                          onChange={updateAddition('wallCladding', 'marbleCode')}
+                          placeholder="مثال: ST-205"
+                        />
+                        <Field
+                          label="عدد الأمتار"
+                          value={form.additions.wallCladding.marbleMeters}
+                          onChange={updateAddition('wallCladding', 'marbleMeters')}
+                          suffix="م"
+                        />
+                        <Field
+                          label="السعر / متر"
+                          value={form.additions.wallCladding.marblePrice}
+                          onChange={updateAddition('wallCladding', 'marblePrice')}
+                          suffix="ريال"
+                        />
+                      </>
+                    )}
+                  </AdditionBlock>
+
+                  {/* 7. مجلس */}
+                  <AdditionBlock
+                    label="مجلس"
+                    checked={form.additions.majlis.enabled}
+                    onToggle={toggleAddition('majlis')}
+                    cost={calc.additionsBreakdown.majlis}
+                  >
+                    <div className="sm:col-span-2 flex flex-wrap gap-2">
+                      {MAJLIS_OPTIONS.map((opt) => (
+                        <Pill
+                          key={opt.value}
+                          active={form.additions.majlis.type === opt.value}
+                          onClick={() => updateAddition('majlis', 'type')(opt.value)}
+                        >
+                          {opt.label}
+                        </Pill>
+                      ))}
+                    </div>
+                  </AdditionBlock>
+
+                  {/* 8. إضافات أخرى */}
+                  <AdditionBlock
+                    label="إضافات أخرى"
+                    checked={form.additions.otherAdditions.enabled}
+                    onToggle={toggleAddition('otherAdditions')}
+                    cost={calc.additionsBreakdown.otherAdditions}
+                  >
+                    <Field
+                      label="السعر"
+                      value={form.additions.otherAdditions.price}
+                      onChange={updateAddition('otherAdditions', 'price')}
+                      suffix="ريال"
+                    />
+                  </AdditionBlock>
+
+                </div>
               </Section>
 
               <Section icon={Wrench} title="مواصفات إضافية" subtitle="بيانات تُنقل إلى شاشة التشغيل — لا تُضاف للسعر">
@@ -869,6 +1268,7 @@ export default function KitchenPricingSystem() {
                   <SummaryLine label={calc.heightLabel} value={calc.heightCost} />
                   <SummaryLine label="الجكات" value={calc.gasStrutCost} />
                   <SummaryLine label="الإنارة" value={calc.lightingCost} />
+                  <SummaryLine label="إجمالي الإضافات" value={calc.additionsTotal} />
                  
                 </div>
 
