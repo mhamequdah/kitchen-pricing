@@ -19,11 +19,11 @@ const LIGHTING_PRICE_PER_METER = 50; // سعر متر الإنارة (مخفي �
 // أسعار الجكات الداخلية (مخفية عن المستخدم)
 const GAS_STRUT_PRICES = {
   hk: 350, // HK سنجل
-  hj: 600, // HJ دبل
+  hf: 600, // HJ دبل
 };
 const GAS_STRUT_TYPE_OPTIONS = [
   { value: 'hk', label: 'HK سنجل' },
-  { value: 'hj', label: 'HJ دبل' },
+  { value: 'hf', label: 'HF دبل' },
 ];
 
 const HANDLE_COLOR_OPTIONS = ['أسود', 'سلفر'];
