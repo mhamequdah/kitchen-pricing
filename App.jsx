@@ -78,7 +78,7 @@ const MAJLIS_OPTIONS = [
 
 // القيمة الافتراضية لكائن الإضافات
 const DEFAULT_ADDITIONS = {
-  fridgeSides: { enabled: false, length: '' },
+  fridgeSides: { enabled: false, type: 'under240', count: '' },
   counterClosure: { enabled: false, meters: '' },
   extraDrawers: { enabled: false, count: '' },
   glassDoors: { enabled: false, frameType: 'normal', count: '' },
@@ -108,12 +108,16 @@ function computeAdditionsCost(additions) {
 
   // 1. جوانب ثلاجة
   if (a.fridgeSides?.enabled) {
-    const length = num(a.fridgeSides.length);
-    const price = length > FRIDGE_SIDES_LENGTH_THRESHOLD ? FRIDGE_SIDES_PRICE_HIGH : FRIDGE_SIDES_PRICE_LOW;
-    breakdown.fridgeSides = length > 0 ? price : 0;
-    total += breakdown.fridgeSides;
-  }
+  const count = num(a.fridgeSides.count);
 
+  const unitPrice =
+    a.fridgeSides.type === 'over240'
+      ? FRIDGE_SIDES_PRICE_HIGH
+      : FRIDGE_SIDES_PRICE_LOW;
+
+  breakdown.fridgeSides = count * unitPrice;
+  total += breakdown.fridgeSides;
+  }
   // 2. تسكيرة كاونتر
   if (a.counterClosure?.enabled) {
     const meters = num(a.counterClosure.meters);
@@ -1033,17 +1037,43 @@ export default function KitchenPricingSystem() {
                 <div className="space-y-2.5">
 
                   {/* 1. جوانب ثلاجة */}
-                  <AdditionBlock
+              <AdditionBlock
                     label="جوانب ثلاجة"
                     checked={form.additions.fridgeSides.enabled}
                     onToggle={toggleAddition('fridgeSides')}
                     cost={calc.additionsBreakdown.fridgeSides}
                   >
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-[#5B4636] mb-2">
+                        نوع الجانب
+                      </label>
+
+                      <div className="flex gap-2">
+                        <Pill
+                          active={form.additions.fridgeSides.type === 'under240'}
+                          onClick={() =>
+                            updateAddition('fridgeSides', 'type')('under240')
+                          }
+                        >
+                          تحت 240 سم
+                        </Pill>
+
+                        <Pill
+                          active={form.additions.fridgeSides.type === 'over240'}
+                          onClick={() =>
+                            updateAddition('fridgeSides', 'type')('over240')
+                          }
+                        >
+                          فوق 240 سم
+                        </Pill>
+                      </div>
+                    </div>
+
                     <Field
-                      label="الطول"
-                      value={form.additions.fridgeSides.length}
-                      onChange={updateAddition('fridgeSides', 'length')}
-                      suffix="cm"
+                      label="عدد الجوانب"
+                      value={form.additions.fridgeSides.count}
+                      onChange={updateAddition('fridgeSides', 'count')}
+                      suffix="جانب"
                     />
                   </AdditionBlock>
 
