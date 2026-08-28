@@ -498,7 +498,7 @@ export default function KitchenPricingSystem() {
     // قيمة الرخام = سعر المتر × عدد الأمتار — لا تُضاف إلا إذا أُدخلت القيم
     const marbleTotal = marblePrice * marbleMeters;
 
-    const total = lowerCost + upperCost + tallCost + heightCost + gasStrutCost + kitchenAdditions + marbleTotal;
+    const total = lowerCost + upperCost + tallCost + heightCost + gasStrutCost + kitchenAdditions + marbleTotal +lightingCost;
     return {
       pricePerMeter,
       lowerCost, upperCost, tallCost,
@@ -868,7 +868,7 @@ export default function KitchenPricingSystem() {
                   <SummaryLine label="سعر الرخام" value={calc.marbleTotal}/>
                   <SummaryLine label={calc.heightLabel} value={calc.heightCost} />
                   <SummaryLine label="الجكات" value={calc.gasStrutCost} />
-                  <SummaryLine label="الإنارة" displayText="هدية" />
+                  <SummaryLine label="الإنارة" value={calc.lightingCost} />
                  
                 </div>
 
