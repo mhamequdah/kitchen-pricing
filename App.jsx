@@ -31,6 +31,14 @@ const HANDLE_CODE_OPTIONS = ['A', 'B', 'C'];
 
 const MARBLE_TYPE_OPTIONS = ['ستارون', 'كوارتز', 'سمارت ستون'];
 
+// معاملات زيادة الارتفاع (مضروبة في 0.33 × سعر المتر)
+const HEIGHT_MULTIPLIERS = { r1: 1.5, r2: 2, r3: 2.5 };
+const HEIGHT_LABELS = {
+  r1: 'زيادة ارتفاع (73–100 سم)',
+  r2: 'زيادة ارتفاع (101–140 سم)',
+  r3: 'ارتفاع مزدوج (Double-height)',
+};
+
 const num = (v) => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
 const money = (n) => (isFinite(n) ? n : 0).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -194,7 +202,8 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
     (tallMeters * 1.5);
 
   // سعر الأعمال الخشبية = سعر المطبخ الكامل - سعر الرخام
-  // (تبقى هذه الطريقة صحيحة بغض النظر عن سعر المتر المُدخل، لأنها تُشتق من الإجمالي المحفوظ)
+  // (تبقى هذه الطريقة صحيحة بغض النظر عن سعر المتر المُدخل أو تداخل زيادة الارتفاع مع
+  // العلوية، لأنها تُشتق من الإجمالي المحفوظ الذي يعتمد على الحسبة الصحيحة الجديدة)
   const woodworkPrice = num(quote.total) - marbleTotal;
 
   const hasMarble = !!quote.marbleType && marbleMeters > 0;
@@ -409,7 +418,7 @@ export default function KitchenPricingSystem() {
     lowerMeters: '',
     upperMeters: '',
     tallMeters: '',
-    heightOption: 'standard', // standard | r1 | r2 | r3
+    heightOption: 'r1', // r1 | r2 | r3 (تم إلغاء خيار "ستاندرد")
     heightMeters: '',
     gasStrutType: '', // hk | hj
     gasStrutCount: '',
@@ -452,20 +461,32 @@ export default function KitchenPricingSystem() {
     const marbleMeters = num(form.marbleMeters);
 
     const lowerCost = lowerMeters * 0.67 * pricePerMeter;
-    const upperCost = upperMeters * 0.33 * pricePerMeter;
     const tallCost = tallMeters * 1.5 * pricePerMeter;
 
+    // ===== زيادة الارتفاع × الخزائن العلوية =====
+    // أمتار زيادة الارتفاع تُقتطع من أمتار الخزائن العلوية نفسها، لذلك يجب
+    // عدم احتساب أي متر مرتين بين المعادلتين.
+    const heightMultiplier = HEIGHT_MULTIPLIERS[form.heightOption] || 0;
+    const heightLabel = HEIGHT_LABELS[form.heightOption] || '';
+
+    let heightError = false;
+    let upperCost = 0;
     let heightCost = 0;
-    let heightLabel = '';
-    if (form.heightOption === 'r1') {
-      heightCost = heightMeters * 1.5 * 0.33 * pricePerMeter;
-      heightLabel = 'زيادة ارتفاع (73–100 سم)';
-    } else if (form.heightOption === 'r2') {
-      heightCost = heightMeters * 2 * 0.33 * pricePerMeter;
-      heightLabel = 'زيادة ارتفاع (101–140 سم)';
-    } else if (form.heightOption === 'r3') {
-      heightCost = heightMeters * 2.5 * 0.33 * pricePerMeter;
-      heightLabel = 'ارتفاع مزدوج (Double-height)';
+
+    if (heightMeters > upperMeters) {
+      // لا يجوز أن تتجاوز أمتار زيادة الارتفاع أمتار الخزائن العلوية — نمنع الحساب
+      heightError = true;
+      upperCost = 0;
+      heightCost = 0;
+    } else if (heightMeters === upperMeters && upperMeters > 0) {
+      // كامل أمتار العلوية تُحسب بمعادلة زيادة الارتفاع فقط، بدون تكرار
+      heightCost = heightMeters * heightMultiplier * 0.33 * pricePerMeter;
+      upperCost = 0;
+    } else {
+      // الأمتار المتبقية من العلوية (بعد استثناء أمتار زيادة الارتفاع) تُحسب بالمعادلة العادية
+      const remainingUpperMeters = upperMeters - heightMeters;
+      upperCost = remainingUpperMeters * 0.33 * pricePerMeter;
+      heightCost = heightMeters * heightMultiplier * 0.33 * pricePerMeter;
     }
 
     // سعر الجك الواحد يعتمد على النوع المختار (مخفي عن المستخدم)
@@ -481,7 +502,7 @@ export default function KitchenPricingSystem() {
     return {
       pricePerMeter,
       lowerCost, upperCost, tallCost,
-      heightCost, heightLabel,
+      heightCost, heightLabel, heightError,
       gasStrutUnitPrice, gasStrutCost,
       lightingCost, kitchenAdditions,
       marblePrice, marbleMeters, marbleTotal,
@@ -500,6 +521,13 @@ export default function KitchenPricingSystem() {
   const saveQuote = () => {
     setSaveErr(null);
     setSaveMsg(null);
+
+    if (calc.heightError) {
+      setSaveErr('عدد الأمتار في زيادة الارتفاع يجب أن يكون مساويًا أو أقل من عدد أمتار الخزائن العلوية.');
+      setTimeout(() => setSaveErr(null), 3000);
+      return;
+    }
+
     try {
       const id = `quote-${Date.now()}`;
       const payload = { id, ...form, ...calc, createdAt: new Date().toISOString() };
@@ -704,100 +732,59 @@ export default function KitchenPricingSystem() {
               </Section>
 
               <Section
-  icon={ArrowUpWideNarrow}
-  step="4"
-  title="زيادة الارتفاع"
-  subtitle="ستاندرد = لا يُضاف شيء"
->
-  <div className="flex flex-wrap gap-2 mb-3">
-    <Pill
-      active={form.heightOption === 'standard'}
-      onClick={() => {
-        update('heightOption')('standard');
-        update('heightMeters')('');
-      }}
-    >
-      ستاندرد
-    </Pill>
+                icon={ArrowUpWideNarrow}
+                step="4"
+                title="زيادة الارتفاع"
+                subtitle="أمتار زيادة الارتفاع تُقتطع من أمتار الخزائن العلوية ولا تُحتسب مرتين"
+              >
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <Pill
+                    active={form.heightOption === 'r1'}
+                    onClick={() => {
+                      update('heightOption')('r1');
+                      update('heightMeters')('');
+                    }}
+                  >
+                    73 – 100 سم
+                  </Pill>
 
-    <Pill
-      active={form.heightOption === 'r1'}
-      onClick={() => {
-        update('heightOption')('r1');
-        update('heightMeters')('');
-      }}
-    >
-      73 – 100 سم
-    </Pill>
+                  <Pill
+                    active={form.heightOption === 'r2'}
+                    onClick={() => {
+                      update('heightOption')('r2');
+                      update('heightMeters')('');
+                    }}
+                  >
+                    101 – 140 سم
+                  </Pill>
 
-    <Pill
-      active={form.heightOption === 'r2'}
-      onClick={() => {
-        update('heightOption')('r2');
-        update('heightMeters')('');
-      }}
-    >
-      101 – 140 سم
-    </Pill>
+                  <Pill
+                    active={form.heightOption === 'r3'}
+                    onClick={() => {
+                      update('heightOption')('r3');
+                      update('heightMeters')('');
+                    }}
+                  >
+                    ارتفاع مزدوج (Double-height)
+                  </Pill>
+                </div>
 
-    <Pill
-      active={form.heightOption === 'r3'}
-      onClick={() => {
-        update('heightOption')('r3');
-        update('heightMeters')('');
-      }}
-    >
-      ارتفاع مزدوج (Double-height)
-    </Pill>
-  </div>
+                <Field
+                  label="عدد الأمتار التي زاد ارتفاعها"
+                  type="text"
+                  inputMode="decimal"
+                  value={form.heightMeters}
+                  onChange={update('heightMeters')}
+                  suffix="م"
+                />
 
-  {form.heightOption !== 'standard' && (
-    <Field
-      label="عدد الأمتار التي زاد ارتفاعه(ادخل القيمة بال cm)"
-      type="text"
-      inputMode="decimal"
-      value={form.heightMeters}
-      onChange={update('heightMeters')}
-      suffix="م"
-      placeholder={
-        form.heightOption === 'r1'
-          ? '0.73 – 1.00'
-          : form.heightOption === 'r2'
-          ? '1.01 – 1.40'
-          : ''
-      }
-      onBlur={() => {
-        const value = form.heightMeters;
-
-        if (value === '') return;
-
-        const numVal = Number(value);
-
-        if (Number.isNaN(numVal)) {
-          update('heightMeters')('');
-          return;
-        }
-
-        if (form.heightOption === 'r1') {
-          if (numVal < 0.73) {
-            update('heightMeters')('0.73');
-          } else if (numVal > 1.00) {
-            update('heightMeters')('1.00');
-          }
-        }
-
-        if (form.heightOption === 'r2') {
-          if (numVal < 1.01) {
-            update('heightMeters')('1.01');
-          } else if (numVal > 1.40) {
-            update('heightMeters')('1.40');
-          }
-        }
-        // لا يوجد نطاق محدد مسبقًا للارتفاع المزدوج، لذا لا يتم تقييد القيمة هنا
-      }}
-    />
-  )}
-</Section>
+                {calc.heightError && (
+                  <p className="flex items-center gap-1.5 text-[11px] text-[#B0432E] mt-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    عدد الأمتار في زيادة الارتفاع يجب أن يكون مساويًا أو أقل من عدد أمتار الخزائن العلوية.
+                  </p>
+                )}
+              </Section>
 
               <Section icon={Sparkles} step="5" title="الجكات" subtitle="اختر النوع أولًا ثم أدخل العدد">
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -879,9 +866,7 @@ export default function KitchenPricingSystem() {
                   <SummaryLine label=" سعر أمتار الخزائن العلوية" value={calc.upperCost} />
                   <SummaryLine label="سعر أمتار الوحدات الطولية" value={calc.tallCost} />
                   <SummaryLine label="سعر الرخام" value={calc.marbleTotal}/>
-                  {form.heightOption !== 'standard' && (
-                    <SummaryLine label={calc.heightLabel} value={calc.heightCost} />
-                  )}
+                  <SummaryLine label={calc.heightLabel} value={calc.heightCost} />
                   <SummaryLine label="الجكات" value={calc.gasStrutCost} />
                   <SummaryLine label="الإنارة" displayText="هدية" />
                  
@@ -893,7 +878,12 @@ export default function KitchenPricingSystem() {
 
                 <button
                   onClick={saveQuote}
-                  className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg bg-[#4A3427] hover:bg-[#3A281D] text-[#F3E7D6] text-sm font-bold py-2.5 transition-colors"
+                  disabled={calc.heightError}
+                  className={`w-full mt-4 flex items-center justify-center gap-2 rounded-lg text-sm font-bold py-2.5 transition-colors ${
+                    calc.heightError
+                      ? 'bg-[#C9BBAA] text-[#F3E7D6] cursor-not-allowed'
+                      : 'bg-[#4A3427] hover:bg-[#3A281D] text-[#F3E7D6]'
+                  }`}
                 >
                   <Save className="w-4 h-4" />
                   حفظ عرض السعر
