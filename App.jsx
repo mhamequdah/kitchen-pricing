@@ -13,9 +13,18 @@ const TABS = [
   { id: 'operations', label: 'التشغيل', icon: Factory },
 ];
 
-const PRICE_PER_METER = 2250; // سعر المتر الثابت (مخفي عن نموذج الإدخال)
-const GAS_STRUT_PRICE = 150;  // سعر الجك الواحد (مخفي عن نموذج الإدخال)
-const LIGHTING_PRICE_PER_METER = 50; // سعر متر الإنارة (مخفي عن نموذج الإدخال)
+// سعر المتر أصبح يُدخل يدويًا من المستخدم (لم يعد ثابتًا)
+const LIGHTING_PRICE_PER_METER = 50; // سعر متر الإنارة (مخفي عن نموذج الإدخال) — لا يُضاف للسعر، الإنارة هدية
+
+// أسعار الجكات الداخلية (مخفية عن المستخدم)
+const GAS_STRUT_PRICES = {
+  hk: 350, // HK سنجل
+  hj: 600, // HJ دبل
+};
+const GAS_STRUT_TYPE_OPTIONS = [
+  { value: 'hk', label: 'HK سنجل' },
+  { value: 'hj', label: 'HJ دبل' },
+];
 
 const HANDLE_COLOR_OPTIONS = ['أسود', 'سلفر'];
 const HANDLE_CODE_OPTIONS = ['A', 'B', 'C'];
@@ -184,8 +193,8 @@ const PdfQuoteTemplate = React.forwardRef(function PdfQuoteTemplate({ quote }, r
     (upperMeters * 0.33) +
     (tallMeters * 1.5);
 
-  // سعر الأعمال الخشبية
-  // سعر المطبخ الكامل - سعر الرخام
+  // سعر الأعمال الخشبية = سعر المطبخ الكامل - سعر الرخام
+  // (تبقى هذه الطريقة صحيحة بغض النظر عن سعر المتر المُدخل، لأنها تُشتق من الإجمالي المحفوظ)
   const woodworkPrice = num(quote.total) - marbleTotal;
 
   const hasMarble = !!quote.marbleType && marbleMeters > 0;
@@ -396,11 +405,13 @@ export default function KitchenPricingSystem() {
     customerName: '',
     phone: '',
     date: todayISO(),
+    pricePerMeter: '',
     lowerMeters: '',
     upperMeters: '',
     tallMeters: '',
-    heightOption: 'standard', // standard | r1 | r2
+    heightOption: 'standard', // standard | r1 | r2 | r3
     heightMeters: '',
+    gasStrutType: '', // hk | hj
     gasStrutCount: '',
     lightingMeters: '',
     kitchenAdditions: '',
@@ -428,6 +439,8 @@ export default function KitchenPricingSystem() {
   const printWindowRef = useRef(null);
 
   const calc = useMemo(() => {
+    const pricePerMeter = num(form.pricePerMeter);
+
     const lowerMeters = num(form.lowerMeters);
     const upperMeters = num(form.upperMeters);
     const tallMeters = num(form.tallMeters);
@@ -438,29 +451,50 @@ export default function KitchenPricingSystem() {
     const marblePrice = num(form.marblePrice);
     const marbleMeters = num(form.marbleMeters);
 
-    const lowerCost = lowerMeters * 0.67 * PRICE_PER_METER;
-    const upperCost = upperMeters * 0.33 * PRICE_PER_METER;
-    const tallCost = tallMeters * 1.5 * PRICE_PER_METER;
+    const lowerCost = lowerMeters * 0.67 * pricePerMeter;
+    const upperCost = upperMeters * 0.33 * pricePerMeter;
+    const tallCost = tallMeters * 1.5 * pricePerMeter;
 
     let heightCost = 0;
     let heightLabel = '';
     if (form.heightOption === 'r1') {
-      heightCost = heightMeters * 1.5 * 0.33 * PRICE_PER_METER;
+      heightCost = heightMeters * 1.5 * 0.33 * pricePerMeter;
       heightLabel = 'زيادة ارتفاع (73–100 سم)';
     } else if (form.heightOption === 'r2') {
-      heightCost = heightMeters * 2 * 0.33 * PRICE_PER_METER;
+      heightCost = heightMeters * 2 * 0.33 * pricePerMeter;
       heightLabel = 'زيادة ارتفاع (101–140 سم)';
+    } else if (form.heightOption === 'r3') {
+      heightCost = heightMeters * 2.5 * 0.33 * pricePerMeter;
+      heightLabel = 'ارتفاع مزدوج (Double-height)';
     }
 
-    const gasStrutCost = gasStrutCount * GAS_STRUT_PRICE;
-    const lightingCost = lightingMeters * LIGHTING_PRICE_PER_METER;
+    // سعر الجك الواحد يعتمد على النوع المختار (مخفي عن المستخدم)
+    const gasStrutUnitPrice = form.gasStrutType ? (GAS_STRUT_PRICES[form.gasStrutType] || 0) : 0;
+    const gasStrutCost = gasStrutCount * gasStrutUnitPrice;
+
+    const lightingCost = lightingMeters * LIGHTING_PRICE_PER_METER; // للعرض فقط — لا تُضاف للإجمالي (هدية)
 
     // قيمة الرخام = سعر المتر × عدد الأمتار — لا تُضاف إلا إذا أُدخلت القيم
     const marbleTotal = marblePrice * marbleMeters;
 
-    const total = lowerCost + upperCost + tallCost + heightCost + gasStrutCost + lightingCost + kitchenAdditions + marbleTotal;
-    return { lowerCost, upperCost, tallCost, heightCost, heightLabel, gasStrutCost, lightingCost, kitchenAdditions, marblePrice, marbleMeters, marbleTotal, total };
-  }, [form.lowerMeters, form.upperMeters, form.tallMeters, form.heightOption, form.heightMeters, form.gasStrutCount, form.lightingMeters, form.kitchenAdditions, form.marblePrice, form.marbleMeters]);
+    const total = lowerCost + upperCost + tallCost + heightCost + gasStrutCost + kitchenAdditions + marbleTotal;
+    return {
+      pricePerMeter,
+      lowerCost, upperCost, tallCost,
+      heightCost, heightLabel,
+      gasStrutUnitPrice, gasStrutCost,
+      lightingCost, kitchenAdditions,
+      marblePrice, marbleMeters, marbleTotal,
+      total,
+    };
+  }, [
+    form.pricePerMeter,
+    form.lowerMeters, form.upperMeters, form.tallMeters,
+    form.heightOption, form.heightMeters,
+    form.gasStrutType, form.gasStrutCount,
+    form.lightingMeters, form.kitchenAdditions,
+    form.marblePrice, form.marbleMeters,
+  ]);
 
   // حفظ عرض السعر داخل الجلسة الحالية فقط (بدون Server وبدون تخزين دائم)
   const saveQuote = () => {
@@ -651,6 +685,10 @@ export default function KitchenPricingSystem() {
                 <Field label="التاريخ" type="date" value={form.date} onChange={update('date')} />
               </Section>
 
+              <Section icon={Ruler} title="سعر المتر" subtitle="يُستخدم في حساب جميع الأعمال الخشبية وزيادة الارتفاع">
+                <Field label="سعر المتر" value={form.pricePerMeter} onChange={update('pricePerMeter')} suffix="ريال" />
+              </Section>
+
               <Section icon={Ruler} step="1" title="أمتار الخزائن السفلية" subtitle="عدد الأمتار × 0.67 × سعر المتر">
                 <Field label="عدد الأمتار" value={form.lowerMeters} onChange={update('lowerMeters')} suffix="م" />
               </Section>
@@ -701,6 +739,16 @@ export default function KitchenPricingSystem() {
     >
       101 – 140 سم
     </Pill>
+
+    <Pill
+      active={form.heightOption === 'r3'}
+      onClick={() => {
+        update('heightOption')('r3');
+        update('heightMeters')('');
+      }}
+    >
+      ارتفاع مزدوج (Double-height)
+    </Pill>
   </div>
 
   {form.heightOption !== 'standard' && (
@@ -714,42 +762,62 @@ export default function KitchenPricingSystem() {
       placeholder={
         form.heightOption === 'r1'
           ? '0.73 – 1.00'
-          : '1.01 – 1.40'
+          : form.heightOption === 'r2'
+          ? '1.01 – 1.40'
+          : ''
       }
       onBlur={() => {
         const value = form.heightMeters;
 
         if (value === '') return;
 
-        const num = Number(value);
+        const numVal = Number(value);
 
-        if (Number.isNaN(num)) {
+        if (Number.isNaN(numVal)) {
           update('heightMeters')('');
           return;
         }
 
         if (form.heightOption === 'r1') {
-          if (num < 0.73) {
+          if (numVal < 0.73) {
             update('heightMeters')('0.73');
-          } else if (num > 1.00) {
+          } else if (numVal > 1.00) {
             update('heightMeters')('1.00');
           }
         }
 
         if (form.heightOption === 'r2') {
-          if (num < 1.01) {
+          if (numVal < 1.01) {
             update('heightMeters')('1.01');
-          } else if (num > 1.40) {
+          } else if (numVal > 1.40) {
             update('heightMeters')('1.40');
           }
         }
+        // لا يوجد نطاق محدد مسبقًا للارتفاع المزدوج، لذا لا يتم تقييد القيمة هنا
       }}
     />
   )}
 </Section>
 
-              <Section icon={Sparkles} step="5" title="عدد الجكات">
-                <Field label="عدد الجكات" value={form.gasStrutCount} onChange={update('gasStrutCount')} suffix="جك" />
+              <Section icon={Sparkles} step="5" title="الجكات" subtitle="اختر النوع أولًا ثم أدخل العدد">
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {GAS_STRUT_TYPE_OPTIONS.map((opt) => (
+                    <Pill
+                      key={opt.value}
+                      active={form.gasStrutType === opt.value}
+                      onClick={() => {
+                        update('gasStrutType')(opt.value);
+                        update('gasStrutCount')('');
+                      }}
+                    >
+                      {opt.label}
+                    </Pill>
+                  ))}
+                </div>
+
+                {form.gasStrutType && (
+                  <Field label="عدد الجكات" value={form.gasStrutCount} onChange={update('gasStrutCount')} suffix="جك" />
+                )}
               </Section>
 
               <Section icon={Lightbulb} step="6" title="الإنارة">
