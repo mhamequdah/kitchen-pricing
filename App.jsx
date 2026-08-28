@@ -1178,7 +1178,7 @@ export default function KitchenPricingSystem() {
 
                   {/* 7. مجلس */}
                   <AdditionBlock
-                    label="مجلس"
+                    label="مجلى"
                     checked={form.additions.majlis.enabled}
                     onToggle={toggleAddition('majlis')}
                     cost={calc.additionsBreakdown.majlis}
